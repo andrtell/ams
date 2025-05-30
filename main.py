@@ -118,10 +118,19 @@ def new_query(q):
     return {**default, **q}
 
 
-def copy_query(q):
-    return {**q}
+def split_query_by_time(q, after, before, intv):
+    ranges = list(date_range(after, before, intv))
+    deltas = zip(ranges, ranges[1:])
+    for after, before in deltas:
+        yield {
+            **q,
+            "published-after": format_datetime(after),
+            "published-before": format_datetime(before),
+        }
+
 
 def request_ads(q):
+    time.sleep(0.3) # naive rate limit
     pprint(q)
     response = requests.get(API_URL, q)
     response.raise_for_status()
@@ -129,7 +138,7 @@ def request_ads(q):
 
 
 def request_ads_paginated(q):
-    q = copy_query(q)
+    q = {**q}
     data = request_ads(q)
     yield data
     total = data["total"]["value"]
@@ -139,24 +148,18 @@ def request_ads_paginated(q):
         q["offset"] += q["limit"]
 
 
-def request_ads_by_time(q, after, before):
-    q["published-after"] = format_datetime(after)
-    q["published-before"] = format_datetime(before)
-    return request_ads_paginated(q)
-
-
-def request_ads_by_time_paginated(q, after, before, intv):
-    ranges = list(date_range(after, before, intv))
-    deltas = zip(ranges, ranges[1:])
-    for after, before in deltas:
-        time.sleep(0.3)
-        for data in request_ads_by_time(q, after, before):
+def request_ads_by_time(q, after, before, intv):
+    queries = split_query_by_time(q, after, before, intv)
+    for q in queries:
+        for data in request_ads_paginated(q):
             yield data
 
 
 def get_ads(q):
     return [
-        ad for data in request_ads_by_time_paginated(q, past_day(), now(), 24) for ad in data["hits"]
+        ad
+        for data in request_ads_by_time(q, past_day(), now(), 24)
+        for ad in data["hits"]
     ]
 
 
