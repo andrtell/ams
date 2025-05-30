@@ -31,6 +31,7 @@ def write_json(filepath, data):
 def new_database():
     return {
         "count": 0,
+        "publication_date": None,
         "objects": [],
     }
 
@@ -50,9 +51,17 @@ def update_count(db):
     db["count"] = len(db["objects"])
 
 
+def update_publication_date(db):
+    d = max(
+        datetime.fromisoformat(ad["publication_date"]) for ad in db["objects"]
+    )
+    db["publication_date"] = format_datetime(d)
+
+
 def tidy_database(db):
     compact_objects(db)
     update_count(db)
+    update_publication_date(db)
 
 
 def read_db(path):
@@ -118,7 +127,7 @@ def new_query(q):
     return {**default, **q}
 
 
-def split_query_by_time(q, after, before, intv):
+def split_query_by_time(q, before, after, intv):
     ranges = list(date_range(after, before, intv))
     deltas = zip(ranges, ranges[1:])
     for after, before in deltas:
@@ -130,7 +139,7 @@ def split_query_by_time(q, after, before, intv):
 
 
 def request_ads(q):
-    time.sleep(0.3) # naive rate limit
+    time.sleep(0.3)  # naive rate limit
     pprint(q)
     response = requests.get(API_URL, q)
     response.raise_for_status()
@@ -148,17 +157,17 @@ def request_ads_paginated(q):
         q["offset"] += q["limit"]
 
 
-def request_ads_by_time(q, after, before, intv):
-    queries = split_query_by_time(q, after, before, intv)
+def request_ads_by_time(q, before, after, intv):
+    queries = split_query_by_time(q, before, after, intv)
     for q in queries:
         for data in request_ads_paginated(q):
             yield data
 
 
-def get_ads(q):
+def get_ads(q, before, after, intv):
     return [
         ad
-        for data in request_ads_by_time(q, past_day(), now(), 24)
+        for data in request_ads_by_time(q, before, after, intv)
         for ad in data["hits"]
     ]
 
@@ -167,7 +176,7 @@ def get_ads(q):
 
 
 def main():
-    ads = get_ads(new_query({"q": ""}))
+    ads = get_ads(new_query({"q": ""}), now(), past_day(), 24)
 
     db = ensure_db(ADS_DB)
 
