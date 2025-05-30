@@ -52,9 +52,7 @@ def update_count(db):
 
 
 def update_publication_date(db):
-    d = max(
-        datetime.fromisoformat(ad["publication_date"]) for ad in db["objects"]
-    )
+    d = max(datetime.fromisoformat(ad["publication_date"]) for ad in db["objects"])
     db["publication_date"] = format_datetime(d)
 
 
@@ -97,10 +95,6 @@ def past_week():
     return now() - timedelta(weeks=1)
 
 
-def format_datetime(dt: datetime) -> str:
-    return dt.strftime("%Y-%m-%dT%H:%M:%S")
-
-
 def date_range(after, before, intv):
     diff = (before - after) / intv
     for i in range(intv):
@@ -108,7 +102,11 @@ def date_range(after, before, intv):
     yield before
 
 
-# API
+def format_datetime(dt: datetime) -> str:
+    return dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+# Header
 
 
 def new_headers():
@@ -118,16 +116,10 @@ def new_headers():
     }
 
 
-def new_query(q):
-    default = {
-        "q": "",
-        "limit": 100,
-        "offset": 0,
-    }
-    return {**default, **q}
+# Query
 
 
-def split_query_by_time(q, before, after, intv):
+def split_query_by_interval(q, before, after, intv):
     ranges = list(date_range(after, before, intv))
     deltas = zip(ranges, ranges[1:])
     for after, before in deltas:
@@ -138,8 +130,23 @@ def split_query_by_time(q, before, after, intv):
         }
 
 
+def new_query_past_hour(q):
+    return split_query_by_interval(q, now(), past_hour(), 1)
+
+
+def new_query_past_day(q):
+    return split_query_by_interval(q, now(), past_day(), 24)
+
+
+def new_query_past_week(q):
+    return split_query_by_interval(q, now(), past_week(), 24 * 7)
+
+
+# Request
+
+
 def request_ads(q):
-    time.sleep(0.3)  # naive rate limit
+    time.sleep(0.6)  # naive rate limit
     pprint(q)
     response = requests.get(API_URL, q)
     response.raise_for_status()
@@ -147,7 +154,7 @@ def request_ads(q):
 
 
 def request_ads_paginated(q):
-    q = {**q}
+    q = {**q, **{"offset": 0, "limit": 100}}
     data = request_ads(q)
     yield data
     total = data["total"]["value"]
@@ -157,26 +164,21 @@ def request_ads_paginated(q):
         q["offset"] += q["limit"]
 
 
-def request_ads_by_time(q, before, after, intv):
-    queries = split_query_by_time(q, before, after, intv)
-    for q in queries:
-        for data in request_ads_paginated(q):
-            yield data
-
-
-def get_ads(q, before, after, intv):
-    return [
+def fetch_ads(query_list):
+    for ad in [
         ad
-        for data in request_ads_by_time(q, before, after, intv)
+        for q in query_list
+        for data in request_ads_paginated(q)
         for ad in data["hits"]
-    ]
+    ]:
+        yield ad
 
 
 # Main
 
 
 def main():
-    ads = get_ads(new_query({"q": ""}), now(), past_day(), 24)
+    ads = list(fetch_ads(new_query_past_day({"q": ""})))
 
     db = ensure_db(ADS_DB)
 
