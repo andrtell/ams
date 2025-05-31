@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
-import database
-import ad_model
+from src import ad_model
+from src import database
 
 
 def migrate_up(conn):

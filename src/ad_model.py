@@ -1,8 +1,6 @@
 import json
-import database
 
-
-# Model
+from src import database
 
 
 def id_from_data(ad_data):

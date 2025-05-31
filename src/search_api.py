@@ -2,7 +2,7 @@ import requests
 import time
 from pprint import pprint
 
-import query
+from src import query
 
 API_URL = "https://jobsearch.api.jobtechdev.se/search"
 

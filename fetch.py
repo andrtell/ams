@@ -1,9 +1,9 @@
 #! /usr/bin/env python3
 
-import query
-import search_api
-import database
-import ad_model
+from src import ad_model
+from src import database
+from src import query
+from src import search_api
 
 
 def main():
