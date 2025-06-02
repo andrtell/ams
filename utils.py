@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 
 def hours_ago(hours):
@@ -27,3 +28,8 @@ def flatten(v):
     walk(v, "")
 
     return items
+
+
+def site_uri(uri):
+    uri = urlparse(uri)
+    return f"{uri.scheme}://{uri.netloc}/"

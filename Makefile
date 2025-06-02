@@ -3,6 +3,9 @@
 fetch:
 	python3 -c "from runner import fetch; fetch()"
 
+populate:
+	python3 -c "from runner import populate; populate()"
+
 db-up:
 	python3 -c "from runner import db_up; db_up()"
 

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from dataclasses import dataclass, replace
+import time
 import requests
 
 
@@ -46,6 +47,7 @@ class JobSearchClient:
     url: str = API_URL
 
     def fetch(self, q):
+        time.sleep(0.3) # naive rate limit
         resp = requests.get(self.url, q.to_params())
         resp.raise_for_status()
         return resp.json()
