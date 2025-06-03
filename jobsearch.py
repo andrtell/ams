@@ -3,65 +3,47 @@ from dataclasses import dataclass, replace
 import time
 import requests
 
+from util import period, paginate
 
-API_URL = "https://jobsearch.api.jobtechdev.se/search"
+
+URL = "https://jobsearch.api.jobtechdev.se/search"
 
 
 def format_datetime(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S")
 
 
-@dataclass
-class JobSearchQuery:
-    offset: int = 0
-    limit: int = 100
-    after: datetime = datetime.now() - timedelta(hours=1)
-    before: datetime = None
-
-    def next_page(self, total):
-        next_offset = self.offset + self.limit
-        return replace(self, offset=next_offset) if next_offset < total else None
-
-    def split_by_hour(self):
-        before = self.before or datetime.now()
-        delta = before - self.after
-        hours = (delta.days * 24) + (delta.seconds // 3600)
-        timestamps = [self.after + timedelta(hours=hour) for hour in range(hours)]
-        timestamps.append(before)
-        intervals = zip(timestamps, timestamps[1:])
-        return [replace(self, after=start, before=end) for start, end in intervals]
-
-    def to_params(self) -> dict:
-        params = {
-            "offset": self.offset,
-            "limit": self.limit,
-            "published-after": format_datetime(self.after),
-        }
-        if self.before:
-            params["published-before"] = format_datetime(self.before)
-        return params
+def params(offset: int, limit: int, start: datetime, end: datetime = None):
+    params = {
+        "offset": offset,
+        "limit": limit,
+        "published-after": format_datetime(start),
+    }
+    if end:
+        params["published-before"] = format_datetime(end)
+    return params
 
 
-@dataclass
-class JobSearchClient:
-    url: str = API_URL
+def make_request(**kwargs):
+    time.sleep(0.3)  # naive rate limit
+    resp = requests.get(URL, params(**kwargs))
+    resp.raise_for_status()
+    return resp.json()
 
-    def fetch(self, q):
-        time.sleep(0.3) # naive rate limit
-        resp = requests.get(self.url, q.to_params())
-        resp.raise_for_status()
-        return resp.json()
 
-    def paginate(self, q):
-        while True:
-            data = self.fetch(q)
-            yield data
-            q = q.next_page(data["total"]["value"])
-            if not q:
-                break
+def paginated(offset=0, limit=100, **kwargs):
+    while True:
+        data = make_request(offset=offset, limit=limit, **kwargs)
+        yield data
+        offset = paginate.next_offset(
+            offset, limit, data.get("total", {}).get("value", 0)
+        )
+        if not offset:
+            break
 
-    def get_ads(self, q: JobSearchQuery):
-        for q in q.split_by_hour():
-            for data in self.paginate(q):
-                for job_ad in data["hits"]:
-                    yield job_ad
+
+def fetch_ads(start: datetime):
+    for start, end in period.split_by_hour(start, datetime.now()):
+        for data in paginated(start=start, end=end):
+            for ad in data["hits"]:
+                yield ad

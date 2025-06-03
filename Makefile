@@ -1,15 +1,18 @@
-.PHONY: fetch db-up db-down nuke-db
+.PHONY: up down nuke fetch sql
+
+up:
+	python3 -c "from task import up; up()"
+
+down:
+	python3 -c "from task import down; down()"
+
+nuke: down up
 
 fetch:
-	python3 -c "from runner import fetch; fetch()"
+	python3 -c "from task import fetch; fetch()"
 
-populate:
-	python3 -c "from runner import populate; populate()"
+sql:
+	sqlite3 data.db
 
-db-up:
-	python3 -c "from runner import db_up; db_up()"
-
-db-down:
-	python3 -c "from runner import db_down; db_down()"
-
-nuke-db: db-down db-up
+# populate:
+# 	python3 -c "from task import populate; populate()"
