@@ -13,7 +13,7 @@ def format_datetime(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def params(offset: int, limit: int, start: datetime, end: datetime = None):
+def query(offset: int, limit: int, start: datetime, end: datetime = None):
     params = {
         "offset": offset,
         "limit": limit,
@@ -24,16 +24,16 @@ def params(offset: int, limit: int, start: datetime, end: datetime = None):
     return params
 
 
-def make_request(**kwargs):
+def do_request(**kwargs):
     time.sleep(0.3)  # naive rate limit
-    resp = requests.get(URL, params(**kwargs))
+    resp = requests.get(URL, query(**kwargs))
     resp.raise_for_status()
     return resp.json()
 
 
-def paginated(offset=0, limit=100, **kwargs):
+def page_request(offset=0, limit=100, **kwargs):
     while True:
-        data = make_request(offset=offset, limit=limit, **kwargs)
+        data = do_request(offset=offset, limit=limit, **kwargs)
         yield data
         offset = paginate.next_offset(
             offset, limit, data.get("total", {}).get("value", 0)
@@ -44,6 +44,6 @@ def paginated(offset=0, limit=100, **kwargs):
 
 def fetch_ads(start: datetime):
     for start, end in period.split_by_hour(start, datetime.now()):
-        for data in paginated(start=start, end=end):
+        for data in page_request(start=start, end=end):
             for ad in data["hits"]:
                 yield ad

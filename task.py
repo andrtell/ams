@@ -1,23 +1,25 @@
 #! /usr/bin/env python3
 import json
-import db, table, jobsearch
+import db, jobsearch
+from table import ads
 from util import past
 
 
 def up():
-    with db.open() as cursor:
-        cursor.execute(table.ads["create"])
+    with db.cursor() as c:
+        ads.create(c)
 
 
 def down():
-    with db.open() as cursor:
-        cursor.execute(table.ads["drop"])
+    with db.cursor() as c:
+        ads.drop(c)
 
 
 def fetch():
-    with db.open() as cursor:
-        for data in jobsearch.fetch_ads(start=past.hour(1)):
-            cursor.execute(table.ads["insert"], (data["id"], json.dumps(data)))
+    with db.cursor() as c:
+        for ad in jobsearch.fetch_ads(start=past.day(1)):
+            ads.insert(c, id=ad["id"], data=json.dumps(ad))
+
 
 
 # def populate():

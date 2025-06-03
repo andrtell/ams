@@ -4,7 +4,7 @@ from contextlib import contextmanager
 DB = "data.db"
 
 @contextmanager
-def open():
+def cursor():
     conn = connect(DB)
     try:
         cur = conn.cursor()
